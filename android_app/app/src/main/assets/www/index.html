@@ -386,7 +386,7 @@
   </div>
 
 <script>
-const DEFAULT_BACKEND = localStorage.getItem("across_backend_url") || "http://127.0.0.1:8000";
+const DEFAULT_BACKEND = localStorage.getItem("across_backend_url") || "https://across-66qs.onrender.com";
 let backendUrl = DEFAULT_BACKEND;
 let offlineOnly = localStorage.getItem("across_offline") === "true";
 let chats = JSON.parse(localStorage.getItem("across_chats") || '{"New Chat": []}');
@@ -543,7 +543,7 @@ function openSettings() {
 }
 function closeSettings() { document.getElementById("settingsModal").classList.remove("open"); }
 function saveSettings() {
-  backendUrl = document.getElementById("backendUrlInput").value.trim() || "http://127.0.0.1:8000";
+  backendUrl = document.getElementById("backendUrlInput").value.trim() || "https://across-66qs.onrender.com";
   offlineOnly = document.getElementById("offlineToggle").checked;
   localStorage.setItem("across_backend_url", backendUrl);
   localStorage.setItem("across_offline", String(offlineOnly));
