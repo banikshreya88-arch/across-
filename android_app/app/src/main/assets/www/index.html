@@ -387,6 +387,18 @@
 
 <script>
 const DEFAULT_BACKEND = localStorage.getItem("across_backend_url") || "https://across-66qs.onrender.com";
+// Wake up cloud backend immediately when app opens
+try { fetch(DEFAULT_BACKEND.replace(/\/$/, "") + "/health").catch(() => {}); } catch (e) {}
+
+function buildCrossChatMemory() {
+  const lines = [];
+  Object.entries(chats).forEach(([chatTitle, msgs]) => {
+    if (chatTitle === currentChat || !Array.isArray(msgs) || msgs.length === 0) return;
+    const recent = msgs.slice(-4).map(m => (m.role === "user" ? "User" : "ACROSS") + ": " + (m.content || "").slice(0, 180));
+    lines.push("[" + chatTitle + "] " + recent.join(" | "));
+  });
+  return lines.slice(-8).join("\n");
+}
 let backendUrl = DEFAULT_BACKEND;
 let offlineOnly = localStorage.getItem("across_offline") === "true";
 let chats = JSON.parse(localStorage.getItem("across_chats") || '{"New Chat": []}');
@@ -463,6 +475,12 @@ function renderMessages() {
       img.src = "data:image/png;base64," + m.image_base64;
       div.appendChild(img);
     }
+    if (m.svg_art) {
+      const wrap = document.createElement("div");
+      wrap.style.marginTop = "8px";
+      wrap.innerHTML = m.svg_art;
+      div.appendChild(wrap);
+    }
     list.appendChild(div);
   });
   const contentArea = document.getElementById("contentArea");
@@ -519,7 +537,8 @@ async function sendMessage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         prompt: userMsg.content,
-        history: chats[currentChat].slice(0, -2).map(x => ({ role: x.role, content: x.content })),
+        history: chats[currentChat].slice(0, -2).slice(-20).map(x => ({ role: x.role, content: x.content })),
+        cross_chat_memory: buildCrossChatMemory(),
         offline_only: offlineOnly,
         image_base64: imgB64,
         image_mime: imgMime
@@ -618,7 +637,7 @@ async function startVoiceMode() {
     const tokResp = await fetch(backendUrl.replace(/\/$/, "") + "/api/voice/token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ history: (chats[currentChat] || []).slice(-6).map(x => ({ role: x.role, content: x.content })) })
+      body: JSON.stringify({ history: (chats[currentChat] || []).slice(-8).map(x => ({ role: x.role, content: x.content })), cross_chat_memory: buildCrossChatMemory() })
     });
     const tokData = await tokResp.json();
     if (!tokData.access_token) throw new Error(tokData.detail || "Could not get voice token");
