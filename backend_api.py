@@ -230,13 +230,24 @@ def chat_endpoint(req: ChatRequest):
     if not is_online:
         return {"role": "assistant", "content": ac.answer_completely_offline(prompt, detected_script)}
 
-    # 4. Fast Online Hybrid Reasoning
-    greetings = {"hi", "hello", "hey", "hii", "hola", "sup", "good morning", "good evening", "bye", "namaste", "pranam", "nomoskar"}
-    search_triggers = ["winner", "jiteche", "won", "match", "score", "news", "current", "ajke", "ekhon", "latest", "2026", "who won", "today", "weather", "price"]
-    needs_search = any(t in p_lower for t in search_triggers) and (p_lower not in greetings)
-
+    # 4. Fast Online Hybrid Reasoning (Search ONLY for unknown/live facts, never on all answers)
     local_hits = ac.retrieve_from_local_corpus(prompt, top_k=2)
     local_math = ac.solve_math_locally(prompt)
+
+    greetings = {"hi", "hello", "hey", "hii", "hola", "sup", "good morning", "good evening", "bye", "namaste", "pranam", "nomoskar", "thanks", "thank you"}
+    non_search_hints = ("write code", "python", "javascript", "html", "css", "debug", "fix code", "poem", "story", "essay", "translate", "kobita", "golpo")
+    live_or_unknown_triggers = (
+        "winner", "jiteche", "won", "match", "score", "news", "current", "ajke", "ekhon", "latest",
+        "2025", "2026", "2027", "who won", "today", "yesterday", "weather", "price", "cost", "rate",
+        "stock", "gold", "petrol", "election", "result", "release", "launch", "update", "ceo", "ipl",
+        "live", "koto", "dam", "khobor", "abohawa", "kobe", "ke jiteche", "kothay",
+        "আজ", "আজকে", "এখন", "খবর", "দাম", "আবহাওয়া", "তাপমাত্রা", "বর্তমান", "নতুন", "কবে", "জিতেছে", "ফলাফল", "কে",
+        "आज", "अभी", "खबर", "कीमत", "मौसम", "वर्तमान", "कब", "कौन", "कितना"
+    )
+    has_strong_local = bool(local_hits and local_hits[0][2] >= 10.0)
+    is_skip = (p_lower in greetings) or bool(local_math) or has_strong_local or any(k in p_lower for k in non_search_hints)
+    is_factual_unknown = (not is_skip) and any(t in p_lower for t in live_or_unknown_triggers)
+    needs_search = is_factual_unknown
     local_ctx = ""
     if local_hits:
         local_ctx += "\n".join(f"- [{k.title()}]: {a}" for k, a, _ in local_hits)
